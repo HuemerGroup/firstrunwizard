@@ -65,9 +65,34 @@ class WizardController extends Controller {
 	 * @return DataResponse
 	 */
 	public function disable() {
+		if(!$this->config->getUserValue($this->userId, 'firstrunwizard', 'agb', 0) || !$this->config->getUserValue($this->userId, 'firstrunwizard', 'mail', 0) ||
+			!$this->config->getUserValue($this->userId, 'firstrunwizard', 'privacy', 0))
+		{
+			$this->config->setUserValue($this->userId, 'firstrunwizard', 'show', 1);
+			return new DataResponse(['message' => 'Error'], 403);
+		}
 		$this->config->setUserValue($this->userId, 'firstrunwizard', 'show', 0);
 		return new DataResponse();
 	}
+
+	/**
+	 * @NoAdminRequired
+	 *
+	 * @param bool $agb
+	 * @param bool $mail
+	 * @return DataResponse
+	 */
+	public function confirm($agb, $mail, $privacy) {
+		if(!$agb || !$mail || !$privacy)
+			return new DataResponse(['message' => 'Error'], 403);
+
+		$this->config->setUserValue($this->userId, 'firstrunwizard', 'agb', 1);
+		$this->config->setUserValue($this->userId, 'firstrunwizard', 'mail', 1);
+		$this->config->setUserValue($this->userId, 'firstrunwizard', 'privacy', 1);
+
+		return new DataResponse();
+	}
+
 
 	/**
 	 * @NoAdminRequired
@@ -75,7 +100,7 @@ class WizardController extends Controller {
 	 */
 	public function show() {
 		$appStore = $this->config->getSystemValue('appstoreenabled', true);
-
+		$urlGenerator = \OC::$server->getURLGenerator();
 		$data = [
 			'desktop'      => $this->config->getSystemValue('customclient_desktop', $this->theming->getSyncClientUrl()),
 			'android'      => $this->config->getSystemValue('customclient_android', $this->theming->getAndroidClientUrl()),
@@ -83,6 +108,10 @@ class WizardController extends Controller {
 			'appStore'     => $appStore,
 			'useTLS'       => $this->request->getServerProtocol() === 'https',
 			'macOSProfile' => \OCP\Util::linkToRemote('dav') . 'provisioning/apple-provisioning.mobileconfig',
+			'agb'          => $this->config->getUserValue($this->userId, 'firstrunwizard', 'agb', 0),
+			'mail'         => $this->config->getUserValue($this->userId, 'firstrunwizard', 'mail', 0),
+			'privacy'      => $this->config->getUserValue($this->userId, 'firstrunwizard', 'privacy', 0),
+			'privacyURL'   => $urlGenerator->linkToRoute('settings_privacy'),
 		];
 
 		$slides = [

@@ -9,10 +9,9 @@
 
 	<div class="firstrunwizard-header">
 
-		<a id="closeWizard" class="close">
-			<img class="svg"
-				 src="<?php p(image_path('core', 'actions/view-close.svg')); ?>">
-		</a>
+		<!--<a id="closeWizard" class="close">
+			<img class="svg" src="<?php //p(image_path('core', 'actions/view-close.svg')); ?>">
+		</a>-->
 		<div class="logo">
 			<p class="hidden-visually">
 				<?php p($theme->getName()); ?>
