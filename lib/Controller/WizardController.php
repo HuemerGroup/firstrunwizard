@@ -24,13 +24,12 @@ namespace OCA\FirstRunWizard\Controller;
 
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\DataResponse;
-use OCP\AppFramework\Http\JSONResponse;
+use OCP\AppFramework\Http\TemplateResponse;
 use OCP\Defaults;
 use OCP\IConfig;
-use OCP\IGroupManager;
 use OCP\IRequest;
 
-class WizardController extends Controller {
+class WizardController extends Controller  {
 
 	/** @var IConfig */
 	protected $config;
@@ -38,26 +37,17 @@ class WizardController extends Controller {
 	/** @var string */
 	protected $userId;
 
-	/** @var Defaults */
-	protected $theming;
-
-	/** @var IGroupManager */
-	protected $groupManager;
-
 	/**
 	 * @param string $appName
 	 * @param IRequest $request
 	 * @param IConfig $config
 	 * @param string $userId
-	 * @param Defaults $theming
 	 */
-	public function __construct($appName, IRequest $request, IConfig $config, $userId, Defaults $theming, IGroupManager $groupManager) {
+	public function __construct($appName, IRequest $request, IConfig $config, $userId) {
 		parent::__construct($appName, $request);
 
 		$this->config = $config;
 		$this->userId = $userId;
-		$this->theming = $theming;
-		$this->groupManager = $groupManager;
 	}
 
 	/**
@@ -65,77 +55,60 @@ class WizardController extends Controller {
 	 * @return DataResponse
 	 */
 	public function disable() {
-		if(!$this->config->getUserValue($this->userId, 'firstrunwizard', 'agb', 0) || !$this->config->getUserValue($this->userId, 'firstrunwizard', 'mail', 0) ||
-			!$this->config->getUserValue($this->userId, 'firstrunwizard', 'privacy', 0))
-		{
-			$this->config->setUserValue($this->userId, 'firstrunwizard', 'show', 1);
-			return new DataResponse(['message' => 'Error'], 403);
-		}
+        if(!$this->config->getUserValue($this->userId, 'firstrunwizard', 'agb', 0) || !$this->config->getUserValue($this->userId, 'firstrunwizard', 'privacy', 0)){
+            $this->config->setUserValue($this->userId, 'firstrunwizard', 'show', 1);
+            return new DataResponse(['message' => 'Error'], 403);
+        }
 		$this->config->setUserValue($this->userId, 'firstrunwizard', 'show', 0);
 		return new DataResponse();
 	}
 
+    /**
+     * @NoAdminRequired
+     *
+     * @param bool $agb
+     * @param bool $mail
+     * @return DataResponse
+     */
+    public function confirm($agb, $mail = 0, $privacy, $cookie) {
+        if(!$agb || !$privacy)
+            return new DataResponse(['message' => 'Error'], 403);
+
+        if($mail)
+            $mail = 1;
+        else
+            $mail = 0;
+
+        if($cookie)
+        	$cookie = 1;
+        else
+        	$cookie = 0;
+
+        $this->config->setUserValue($this->userId, 'firstrunwizard', 'agb', 1);
+        $this->config->setUserValue($this->userId, 'firstrunwizard', 'privacy', 1);
+        $this->config->setUserValue($this->userId, 'firstrunwizard', 'mail', $mail);
+        $this->config->setUserValue($this->userId, 'firstrunwizard', 'cookie', $cookie);
+
+        return new DataResponse();
+    }
+
 	/**
 	 * @NoAdminRequired
-	 *
-	 * @param bool $agb
-	 * @param bool $mail
-	 * @return DataResponse
-	 */
-	public function confirm($agb, $mail, $privacy) {
-		if(!$agb || !$mail || !$privacy)
-			return new DataResponse(['message' => 'Error'], 403);
-
-		$this->config->setUserValue($this->userId, 'firstrunwizard', 'agb', 1);
-		$this->config->setUserValue($this->userId, 'firstrunwizard', 'mail', 1);
-		$this->config->setUserValue($this->userId, 'firstrunwizard', 'privacy', 1);
-
-		return new DataResponse();
-	}
-
-
-	/**
-	 * @NoAdminRequired
-	 * @return JsonResponse
+	 * @return TemplateResponse
 	 */
 	public function show() {
-		$appStore = $this->config->getSystemValue('appstoreenabled', true);
-		$urlGenerator = \OC::$server->getURLGenerator();
-		$data = [
-			'desktop'      => $this->config->getSystemValue('customclient_desktop', $this->theming->getSyncClientUrl()),
-			'android'      => $this->config->getSystemValue('customclient_android', $this->theming->getAndroidClientUrl()),
-			'ios'          => $this->config->getSystemValue('customclient_ios', $this->theming->getiOSClientUrl()),
-			'appStore'     => $appStore,
-			'useTLS'       => $this->request->getServerProtocol() === 'https',
-			'macOSProfile' => \OCP\Util::linkToRemote('dav') . 'provisioning/apple-provisioning.mobileconfig',
-			'agb'          => $this->config->getUserValue($this->userId, 'firstrunwizard', 'agb', 0),
-			'mail'         => $this->config->getUserValue($this->userId, 'firstrunwizard', 'mail', 0),
-			'privacy'      => $this->config->getUserValue($this->userId, 'firstrunwizard', 'privacy', 0),
-			'privacyURL'   => $urlGenerator->linkToRoute('settings_privacy'),
-		];
-
-		$slides = [
-			$this->staticSlide('page.values', $data)
-		];
-		if ($appStore && $this->groupManager->isAdmin($this->userId)) {
-			$slides[] = $this->staticSlide('page.apps', $data);
-		}
-		$slides[] = $this->staticSlide('page.clients', $data);
-		$slides[] = $this->staticSlide('page.final', $data);
-
-		return new JSONResponse($slides);
-	}
-
-	public function staticSlide($name, $params) {
-		$template = new \OCP\Template($this->appName, $name, false);
-
-		foreach($params as $key => $value){
-			$template->assign($key, $value);
-		}
-
-		return [
-			'type' => 'inline',
-			'content' => $template->fetchPage($params)
-		];
+		/** @var Defaults $theming */
+		$theming = \OC::$server->query(Defaults::class);
+        $urlGenerator = \OC::$server->getURLGenerator();
+		return new TemplateResponse('firstrunwizard', 'wizard', [
+			'desktop'      => $this->config->getSystemValue('customclient_desktop', $theming->getSyncClientUrl()),
+			'android'      => $this->config->getSystemValue('customclient_android', $theming->getAndroidClientUrl()),
+			'ios'          => $this->config->getSystemValue('customclient_ios', $theming->getiOSClientUrl()),
+            'agb'          => $this->config->getUserValue($this->userId, 'firstrunwizard', 'agb', 0),
+            'mail'         => $this->config->getUserValue($this->userId, 'firstrunwizard', 'mail', 0),
+            'privacy'      => $this->config->getUserValue($this->userId, 'firstrunwizard', 'privacy', 0),
+            'cookie'      => $this->config->getUserValue($this->userId, 'firstrunwizard', 'cookie', 0),
+            'privacyURL'   => $urlGenerator->linkToRoute('settings.Privacy.privacy'),
+		], '');
 	}
 }

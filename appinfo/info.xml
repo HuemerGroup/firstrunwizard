@@ -20,16 +20,6 @@ The First run wizard can be customized to meet specific design goals, or to chan
 	<dependencies>
 		<nextcloud min-version="19" max-version="19" />
 	</dependencies>
-	<navigations>
-		<navigation>
-			<id>firstrunwizard-about</id>
-			<name>About</name>
-			<route></route>
-			<order>5</order>
-			<icon>info.svg</icon>
-			<type>settings</type>
-		</navigation>
-	</navigations>
 	<settings>
 		<personal>OCA\FirstRunWizard\Settings\Personal</personal>
 	</settings>

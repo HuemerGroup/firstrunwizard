@@ -23,18 +23,15 @@
 
 namespace OCA\FirstRunWizard\AppInfo;
 
-use OCA\Files\Event\LoadAdditionalScriptsEvent;
-use OCA\FirstRunWizard\Notification\AppHint;
 use OCA\FirstRunWizard\Notification\Notifier;
+use OCA\FirstRunWizard\Notification\AppHint;
 use OCP\AppFramework\App;
-use OCP\AppFramework\Http\TemplateResponse;
-use OCP\EventDispatcher\IEventDispatcher;
 use OCP\IConfig;
-use OCP\IInitialStateService;
 use OCP\IL10N;
-use OCP\IServerContainer;
+use OCP\IRequest;
 use OCP\IUser;
 use OCP\IUserSession;
+use OCP\Util;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 class Application extends App {
@@ -55,17 +52,11 @@ class Application extends App {
 	}
 
 	protected function registerScripts() {
-		/** @var IServerContainer $server */
-		$server = $this->getContainer()->getServer();
-		/** @var IEventDispatcher $dispatcher */
-		$dispatcher = $server->query(IEventDispatcher::class);
-
-		$dispatcher->addListener(TemplateResponse::EVENT_LOAD_ADDITIONAL_SCRIPTS_LOGGEDIN, function() {
-			\OC_Util::addScript('firstrunwizard', 'about');
-		});
+		/** @var EventDispatcherInterface $dispatcher */
+		$dispatcher = $this->getContainer()->query(EventDispatcherInterface::class);
 
 		// Display the first run wizard only on the files app,
-		$dispatcher->addListener(LoadAdditionalScriptsEvent::class, function() use ($server) {
+		$dispatcher->addListener('OCA\Files::loadAdditionalScripts', function() {
 			/** @var IUserSession $userSession */
 			$userSession = $this->getContainer()->query(IUserSession::class);
 			$user = $userSession->getUser();
@@ -76,15 +67,14 @@ class Application extends App {
 
 			/** @var IConfig $config */
 			$config = $this->getContainer()->query(IConfig::class);
-			$appHint = $this->getContainer()->query(AppHint::class);
 
 			if ($config->getUserValue($user->getUID(), 'firstrunwizard', 'show', '1') !== '0') {
-				\OC_Util::addScript('firstrunwizard', 'activate');
+				style('firstrunwizard', ['colorbox', 'firstrunwizard']);
+				script('firstrunwizard', ['jquery.colorbox', 'firstrunwizard', 'activate']);
 
 				$jobList = $this->getContainer()->getServer()->getJobList();
 				$jobList->add('OCA\FirstRunWizard\Notification\BackgroundJob', ['uid' => $userSession->getUser()->getUID()]);
 			}
-			$appHint->sendAppHintNotifications();
 		});
 	}
 

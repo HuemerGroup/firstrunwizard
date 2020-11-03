@@ -57,33 +57,13 @@ class Notifier implements INotifier {
 	}
 
 	/**
-	 * Identifier of the notifier, only use [a-z0-9_]
-	 *
-	 * @return string
-	 * @since 17.0.0
-	 */
-	public function getID(): string {
-		return 'firstrunwizard';
-	}
-
-	/**
-	 * Human readable name describing the notifier
-	 *
-	 * @return string
-	 * @since 17.0.0
-	 */
-	public function getName(): string {
-		return $this->factory->get('firstrunwizard')->t('First run wizard');
-	}
-
-	/**
 	 * @param INotification $notification
 	 * @param string $languageCode The code of the language that should be used to prepare the notification
 	 * @return INotification
 	 * @throws \InvalidArgumentException When the notification was not prepared by a notifier
 	 * @since 9.0.0
 	 */
-	public function prepare(INotification $notification, string $languageCode): INotification {
+	public function prepare(INotification $notification, $languageCode) {
 		if ($notification->getApp() !== 'firstrunwizard') {
 			// Not my app => throw
 			throw new \InvalidArgumentException();
@@ -101,17 +81,7 @@ class Notifier implements INotifier {
 				$notification->setParsedSubject($subject)
 					->setLink($this->url->linkToRouteAbsolute('settings.PersonalSettings.index'));
 				return $notification;
-			case 'apphint-calendar':
-			case 'apphint-contacts':
-			case 'apphint-mail':
-			case 'apphint-spreed':
-			case 'apphint-tasks':
-			case 'apphint-deck':
-			case 'apphint-notes':
-			case 'apphint-social':
-			case 'apphint-groupfolders':
-				$app = $notification->getObjectId();
-				return $this->setAppHintDetails($notification, $languageCode, $app);
+
 			default:
 				// Unknown subject => Unknown notification => throw
 				throw new \InvalidArgumentException();
@@ -129,7 +99,9 @@ class Notifier implements INotifier {
 
 		$email = $user->getEMailAddress();
 		if ($email === null || $email === '') {
-			return $l->t('Add your profile information! For example your email is needed to reset your password.');
+			if( \OC::$server->getSystemConfig()->getValue('disable_password_reset_notification',false) === false) {
+				return $l->t('Add your profile information! For example your email is needed to reset your password.');
+			}
 		}
 
 		if ($user->canChangeDisplayName() && $user->getDisplayName() === $user->getUID()) {
@@ -146,62 +118,4 @@ class Notifier implements INotifier {
 			}
 		}
 	}
-
-	/**
-	 * @param INotification $notification
-	 * @param string $languageCode
-	 * @return INotification
-	 */
-	protected function setAppHintDetails(INotification $notification, $languageCode, $app) {
-		$l = $this->factory->get('firstrunwizard', $languageCode);
-		$appLink = '';
-		switch ($app) {
-			case 'calendar':
-				$notification->setParsedSubject($l->t('App recommendation: Nextcloud Calendar'));
-				$notification->setParsedMessage($l->t('Schedule work & meetings, synced with all your devices.'));
-				$appLink = '/organization/calendar';
-				break;
-			case 'contacts':
-				$notification->setParsedSubject($l->t('App recommendation: Nextcloud Contacts'));
-				$notification->setParsedMessage($l->t('Keep your colleagues and friends in one place without leaking their private info.'));
-				$appLink = '/organization/contacts';
-				break;
-			case 'mail':
-				$notification->setParsedSubject($l->t('App recommendation: Nextcloud Mail'));
-				$notification->setParsedMessage($l->t('Simple email app nicely integrated with Files, Contacts and Calendar.'));
-				$appLink = '/social/mail';
-				break;
-
-			case 'tasks':
-				$notification->setParsedSubject($l->t('App recommendation: Tasks'));
-				$notification->setParsedMessage($l->t('Sync tasks from various devices with your Nextcloud and edit them online.'));
-				$appLink = '/organization/tasks';
-				break;
-			case 'deck':
-				$notification->setParsedSubject($l->t('App recommendation: Deck'));
-				$notification->setParsedMessage($l->t('Kanban style organization for personal planning and team projects.'));
-				$appLink = '/organization/deck';
-				break;
-			case 'notes':
-				$notification->setParsedSubject($l->t('App recommendation: Notes'));
-				$notification->setParsedMessage($l->t('Distraction-free notes and writing.'));
-				$appLink = '/organization/notes';
-				break;
-			case 'social':
-				$notification->setParsedSubject($l->t('App recommendation: Social'));
-				$notification->setParsedMessage($l->t('Nextcloud becomes part of the federated social networks.'));
-				$appLink = '/social/social';
-				break;
-			case 'groupfolders':
-				$notification->setParsedSubject($l->t('App recommendation: Group folders'));
-				$notification->setParsedMessage($l->t('Admin-configured folders shared by everyone in a group.'));
-				$appLink = '/files/groupfolders';
-				break;
-		}
-		$notification
-			->setLink($this->url->linkToRouteAbsolute('settings.AppSettings.viewApps') . $appLink, 'GET')
-			->setIcon($this->url->getAbsoluteURL($this->url->imagePath('firstrunwizard', 'apps/'. $app . '.svg')));
-		return $notification;
-	}
-
 }
